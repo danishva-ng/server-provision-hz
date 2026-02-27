@@ -11,7 +11,7 @@ variable "server_name" {
 
 variable "server_type" {
   type    = string
-  default = "cx22"
+  default = "cpx22"
 }
 
 variable "location" {
