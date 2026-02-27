@@ -2,10 +2,14 @@ name: Terraform Infra Provision
 
 on:
   workflow_dispatch:
+    inputs:
+      confirm_apply:
+        description: "Type YES to apply changes"
+        required: true
+        default: "NO"
 
 jobs:
-  plan:
-    name: Terraform Plan
+  terraform:
     runs-on: ubuntu-latest
 
     env:
@@ -14,11 +18,29 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Configure Terraform Plugin Cache
+        run: |
+          mkdir -p ~/.terraform.d/plugin-cache
+          echo 'plugin_cache_dir = "~/.terraform.d/plugin-cache"' > ~/.terraformrc
+
+      - name: Cache Terraform Providers
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.terraform.d/plugin-cache
+            .terraform
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/*.tf') }}
 
       - name: Terraform Init
-        run: terraform init
+        run: terraform init -upgrade=false
 
       - name: Terraform Validate
         run: terraform validate
@@ -26,33 +48,13 @@ jobs:
       - name: Terraform Plan
         run: terraform plan -out=tfplan
 
-      - name: Upload Plan Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tfplan
-          path: tfplan
-
-  apply:
-    name: Terraform Apply
-    needs: plan
-    runs-on: ubuntu-latest
-    environment: infra   # 👈 Manual approval happens here
-
-    env:
-      TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.HCLOUD_S3_ACCESS_KEY }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
-
-      - name: Terraform Init
-        run: terraform init
-
-      - uses: actions/download-artifact@v4
-        with:
-          name: tfplan
+      # 👇 Manual Confirmation Gate
+      - name: Check Approval Input
+        run: |
+          if [ "${{ github.event.inputs.confirm_apply }}" != "YES" ]; then
+            echo "Apply not confirmed. Exiting pipeline."
+            exit 1
+          fi
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
