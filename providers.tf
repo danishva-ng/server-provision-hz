@@ -2,19 +2,19 @@ terraform {
   required_version = ">= 1.5.0"
 
   backend "s3" {
-    bucket                      = "tfpocserver"
-    key                         = "poc-k8s-bastion/terraform.tfstate"
-    region                      = "eu-central"   # dummy value required
-    endpoint                    = "https://nbg1.your-objectstorage.com"
-    
+    bucket = "tfpocserver"
+    key    = "poc-k8s-bastion/terraform.tfstate"
+    region = "eu-central" # required but not used by Hetzner
 
-    access_key                  = ""
-    secret_key                  = ""
+    endpoints = {
+      s3 = "https://nbg1.your-objectstorage.com"
+    }
+
+    use_path_style = true
 
     skip_credentials_validation = true
     skip_region_validation      = true
     skip_requesting_account_id  = true
-    force_path_style            = true
   }
 
   required_providers {
