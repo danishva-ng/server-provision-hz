@@ -5,21 +5,37 @@ variable "hcloud_token" {
 }
 
 variable "server_name" {
-  type    = string
-  default = "poc-tf-gaming-k8s-vm"
+  description = "Name of the server"
+  type        = string
+  default     = "poc-tf-gaming-k8s-vm"
 }
 
 variable "server_type" {
-  type    = string
-  default = "cpx22"
+  description = "Hetzner server type"
+  type        = string
+  default     = "cpx22"
 }
 
 variable "location" {
-  type    = string
-  default = "nbg1"
+  description = "Hetzner location"
+  type        = string
+  default     = "nbg1"
 }
 
 variable "image" {
-  type    = string
-  default = "ubuntu-22.04"
+  description = "OS image"
+  type        = string
+  default     = "ubuntu-22.04"
+}
+
+variable "ssh_key_name" {
+  default = "poc-k8s-game"
+}
+
+variable "network_name" {
+  default = "poc-k8s-net"
+}
+
+variable "firewall_name" {
+  default = "bastion-fw"
 }
