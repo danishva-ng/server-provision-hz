@@ -2,9 +2,24 @@ name: Terraform Infra Provision
 
 on:
   workflow_dispatch:
+    inputs:
+      action:
+        description: "Select action"
+        required: true
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - destroy
 
 jobs:
+
+  ########################################
+  # APPLY FLOW
+  ########################################
+
   plan:
+    if: github.event.inputs.action == 'apply'
     name: Terraform Plan
     runs-on: ubuntu-latest
 
@@ -14,24 +29,36 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - run: terraform init -upgrade=false
-      - run: terraform validate
-      - run: terraform plan -out=tfplan
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
 
-      - uses: actions/upload-artifact@v4
+      - name: Terraform Init
+        run: terraform init -upgrade=false
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+
+      - name: Upload Plan Artifact
+        uses: actions/upload-artifact@v4
         with:
           name: tfplan
           path: tfplan
 
 
   apply:
+    if: github.event.inputs.action == 'apply'
     name: Terraform Apply
     needs: plan
     runs-on: ubuntu-latest
-    environment: infra   # 👈 This creates pause AFTER plan
+    environment: infra   # 👈 Approval required here
 
     env:
       TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
@@ -39,14 +66,93 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - run: terraform init -upgrade=false
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
 
-      - uses: actions/download-artifact@v4
+      - name: Terraform Init
+        run: terraform init -upgrade=false
+
+      - name: Download Plan Artifact
+        uses: actions/download-artifact@v4
         with:
           name: tfplan
 
-      - run: terraform apply -auto-approve tfplan
-      - run: terraform output
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+
+      - name: Show Outputs
+        run: terraform output
+
+
+  ########################################
+  # DESTROY FLOW
+  ########################################
+
+  destroy-plan:
+    if: github.event.inputs.action == 'destroy'
+    name: Terraform Destroy Plan
+    runs-on: ubuntu-latest
+
+    env:
+      TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.HCLOUD_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform init -upgrade=false
+
+      - name: Terraform Destroy Plan
+        run: terraform plan -destroy -out=tfdestroyplan
+
+      - name: Upload Destroy Plan Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfdestroyplan
+          path: tfdestroyplan
+
+
+  destroy:
+    if: github.event.inputs.action == 'destroy'
+    name: Terraform Destroy
+    needs: destroy-plan
+    runs-on: ubuntu-latest
+    environment: infra   # 👈 Same approval gate
+
+    env:
+      TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.HCLOUD_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Terraform Init
+        run: terraform init -upgrade=false
+
+      - name: Download Destroy Plan Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfdestroyplan
+
+      - name: Terraform Destroy
+        run: terraform apply -auto-approve tfdestroyplan
