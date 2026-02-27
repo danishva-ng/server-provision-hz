@@ -1,14 +1,13 @@
 ############################################
-# SSH Key Registration
+# Reference Existing SSH Key
 ############################################
 
-resource "hcloud_ssh_key" "github_key" {
-  name       = "github-actions-ssh-key"
-  public_key = var.ssh_public_key
+data "hcloud_ssh_key" "existing" {
+  name = "gaming-k8s-key"
 }
 
 ############################################
-# Public VM Creation
+# Create Public VM
 ############################################
 
 resource "hcloud_server" "vm" {
@@ -18,7 +17,7 @@ resource "hcloud_server" "vm" {
   location    = var.location
 
   ssh_keys = [
-    hcloud_ssh_key.github_key.id
+    data.hcloud_ssh_key.existing.id
   ]
 
   labels = {
