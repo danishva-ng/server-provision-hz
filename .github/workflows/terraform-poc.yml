@@ -10,6 +10,8 @@ jobs:
 
     env:
       TF_VAR_hcloud_token: ${{ secrets.HCLOUD_TOKEN }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.HCLOUD_S3_ACCESS_KEY }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.HCLOUD_S3_SECRET_KEY }}
 
     steps:
       - name: Checkout Repository
